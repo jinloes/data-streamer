@@ -4,8 +4,6 @@ import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.eventbus.Message;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,41 +11,46 @@ import java.io.IOException;
 /**
  * Created by rr2re on 8/7/2015.
  */
-public class JsonWriter extends AbstractVerticle {
+public class JsonWriter extends Streamer {
     private JsonFactory jsonFactory = new JsonFactory();
     private JsonGenerator jsonGenerator;
 
     @Override
-    public void start() {
-        vertx.eventBus().consumer("writeJson", this::writeJson);
+    String getName() {
+        return "JsonWriter";
+    }
+
+    @Override
+    public void onStart() {
         try {
             jsonGenerator = jsonFactory.createGenerator(new File("C:\\Windows\\Temp\\test.json"),
                     JsonEncoding.UTF8);
+            jsonGenerator.setCodec(new ObjectMapper());
+            jsonGenerator.writeStartArray();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        jsonGenerator.setCodec(new ObjectMapper());
     }
 
-    private void writeJson(Message<Document> message) {
-        Document document = message.body();
+    @Override
+    public void onEnd() {
         try {
-            switch (document.getType()) {
-                case START:
-                    jsonGenerator.writeStartArray();
-                    break;
-                case END:
-                    jsonGenerator.writeEndArray();
-                    jsonGenerator.flush();
-                    jsonGenerator.close();
-                    break;
-                case DATA:
-                    jsonGenerator.writeObject(document.getData());
-                    break;
-
-            }
+            jsonGenerator.writeEndArray();
+            jsonGenerator.flush();
+            jsonGenerator.close();
+            System.out.println("Done");
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public Document onData(Document document) {
+        try {
+            jsonGenerator.writeObject(document.getData());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
     }
 }
