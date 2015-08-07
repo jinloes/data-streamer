@@ -1,0 +1,18 @@
+group 'com.jinloes'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'io.vertx:vertx-core:3.0.0'
+    compile 'io.vertx:vertx-web:3.0.0'
+    compile 'net.sf.supercsv:super-csv:2.3.1'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.6.0'
+    testCompile 'junit:junit:4.11'
+}
