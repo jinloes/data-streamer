@@ -14,7 +14,6 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by rr2re on 8/7/2015.
@@ -35,20 +34,14 @@ public class Server extends AbstractVerticle {
 
         router.route().handler(BodyHandler.create());
         router.post("/start").handler(routingContext -> {
-            StreamerVerticle csv = new Reader("CsvReader", new CsvReader(), "JsonReader");
-            StreamerVerticle json = new StreamerVerticle("JsonReader", new JsonWriter(), null);
+            StreamerVerticle csv = new ReaderVerticle("CsvReader", new CsvReader(), "JsonReader");
+            StreamerVerticle json = new WriterVerticle("JsonReader", new JsonWriter());
             final String[] deployId = {null, null};
-            vertx.deployVerticle(csv, new Handler<AsyncResult<String>>() {
-                @Override
-                public void handle(AsyncResult<String> event) {
-                    deployId[0] = event.result();
-                }
+            vertx.deployVerticle(csv, event -> {
+                deployId[0] = event.result();
             });
-            vertx.deployVerticle(json, new Handler<AsyncResult<String>>() {
-                @Override
-                public void handle(AsyncResult<String> event) {
-                    deployId[1] = event.result();
-                }
+            vertx.deployVerticle(json, event -> {
+                deployId[1] = event.result();
             });
             eventBus.send("CsvReader", Document.of(null));
             //vertx.undeploy(deployId[0]);
@@ -57,7 +50,7 @@ public class Server extends AbstractVerticle {
             HttpServerResponse response = routingContext.response();
             response.setStatusCode(200);
         });
-        vertx.createHttpServer().requestHandler(router::accept).listen(8081);
+        vertx.createHttpServer().requestHandler(router::accept).listen(8080);
     }
 
     private static class DocumentCodec implements MessageCodec<Document, Document> {

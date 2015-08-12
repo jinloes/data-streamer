@@ -6,16 +6,13 @@ import io.vertx.core.eventbus.Message;
 /**
  * Created by rr2re on 8/7/2015.
  */
-public class StreamerVerticle extends AbstractVerticle {
-    private String name;
+public abstract class StreamerVerticle extends AbstractVerticle {
+    protected String name;
     protected Streamer streamer;
-    protected String next;
-    private boolean startSent = false;
 
-    public StreamerVerticle(String name, Streamer streamer, String next) {
+    public StreamerVerticle(String name, Streamer streamer) {
         this.name = name;
         this.streamer = streamer;
-        this.next = next;
     }
 
     @Override
@@ -23,13 +20,5 @@ public class StreamerVerticle extends AbstractVerticle {
         vertx.eventBus().consumer(name, this::handleMessage);
     }
 
-    public void handleMessage(Message<Document> message) {
-        Document document = streamer.execute(message.body());
-        if (document != null) {
-            if (!startSent) {
-                vertx.eventBus().send(next, Document.startDocument());
-            }
-            vertx.eventBus().send(next, document);
-        }
-    }
+    public abstract void handleMessage(Message<Document> message);
 }

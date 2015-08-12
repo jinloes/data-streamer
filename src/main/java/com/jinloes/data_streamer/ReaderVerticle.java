@@ -5,22 +5,20 @@ import io.vertx.core.eventbus.Message;
 /**
  * Created by rr2re on 8/7/2015.
  */
-public class Reader extends StreamerVerticle {
+public class ReaderVerticle extends StreamerVerticle {
     private final ReaderStreamer streamer;
-    private boolean firstSent = false;
+    private final String next;
 
-    public Reader(String name, ReaderStreamer streamer, String next) {
-        super(name, streamer, next);
+    public ReaderVerticle(String name, ReaderStreamer streamer, String next) {
+        super(name, streamer);
         this.streamer = streamer;
+        this.next = next;
     }
 
     @Override
     public void handleMessage(Message<Document> message) {
+        vertx.eventBus().send(next, Document.startDocument());
         while (streamer.hasNext()) {
-            if (!firstSent) {
-                vertx.eventBus().send(next, Document.startDocument());
-                firstSent = true;
-            }
             vertx.eventBus().send(next, streamer.next());
         }
         vertx.eventBus().send(next, Document.endDocument());

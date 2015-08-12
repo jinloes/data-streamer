@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,8 +24,13 @@ public class JsonWriter extends Streamer {
     @Override
     public void onStart() {
         try {
-            jsonGenerator = jsonFactory.createGenerator(new File("C:\\Windows\\Temp\\test.json"),
-                    JsonEncoding.UTF8);
+            String file = SystemUtils.IS_OS_WINDOWS ? "C:\\Windows\\Temp\\test.json" : "/tmp/test.json";
+            File f = new File(file);
+            if (f.exists()) {
+                f.delete();
+            }
+            f.createNewFile();
+            jsonGenerator = jsonFactory.createGenerator(f, JsonEncoding.UTF8);
             jsonGenerator.setCodec(new ObjectMapper());
             jsonGenerator.writeStartArray();
         } catch (IOException e) {

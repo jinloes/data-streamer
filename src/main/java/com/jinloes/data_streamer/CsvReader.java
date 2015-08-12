@@ -3,10 +3,9 @@ package com.jinloes.data_streamer;
 import org.supercsv.io.CsvMapReader;
 import org.supercsv.prefs.CsvPreference;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Map;
 
 /**
@@ -18,11 +17,13 @@ public class CsvReader extends ReaderStreamer {
     private Map<String, String> next;
 
     public CsvReader() {
-        File file = Paths.get(
+        InputStream file = this.getClass().getClassLoader().getResourceAsStream("FL_insurance_sample.csv");/*Paths.get(
                 "C:\\Users\\rr2re\\Documents\\workspaces\\data-streamer\\src\\main\\resources\\FL_insurance_sample.csv")
-                .toFile();
+                .toFile()*/
+        ;
         try {
-            FileReader reader = new FileReader(file);
+            //FileReader reader = new FileReader(file);
+            InputStreamReader reader = new InputStreamReader(file);
             csvMapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE);
             header = csvMapReader.getHeader(true);
         } catch (Exception e) {
@@ -32,7 +33,13 @@ public class CsvReader extends ReaderStreamer {
 
     @Override
     Document next() {
-        return Document.of(next);
+        Document document = Document.of(next);
+        try {
+            next = csvMapReader.read(header);
+            return document;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -43,7 +50,9 @@ public class CsvReader extends ReaderStreamer {
     @Override
     boolean hasNext() {
         try {
-            next = csvMapReader.read(header);
+            if (next == null) {
+                next = csvMapReader.read(header);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
