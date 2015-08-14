@@ -31,8 +31,9 @@ public class JsonWriter extends Streamer {
             }
             f.createNewFile();
             jsonGenerator = jsonFactory.createGenerator(f, JsonEncoding.UTF8);
-            jsonGenerator.setCodec(new ObjectMapper());
-            jsonGenerator.writeStartArray();
+            jsonGenerator.setCodec(new ObjectMapper())
+                    .useDefaultPrettyPrinter()
+                    .writeStartArray();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

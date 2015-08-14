@@ -1,29 +1,27 @@
 package com.jinloes.data_streamer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jinloes.data_streamer.util.DocumentCodec;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
-
-import java.io.IOException;
 
 /**
  * Created by rr2re on 8/7/2015.
  */
 public class Server extends AbstractVerticle {
+    private final int port;
+
+    public Server(int port) {
+        this.port = port;
+    }
+
     public static void main(String[] args) {
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
         Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new Server());
-        /*vertx.deployVerticle(new CsvReader());
-        vertx.deployVerticle(new JsonWriter());*/
+        vertx.deployVerticle(new Server(port));
         vertx.eventBus().registerDefaultCodec(Document.class, new DocumentCodec());
     }
 
@@ -49,44 +47,8 @@ public class Server extends AbstractVerticle {
             System.out.println("Removed verticles");
             HttpServerResponse response = routingContext.response();
             response.setStatusCode(200);
+            response.end();
         });
-        vertx.createHttpServer().requestHandler(router::accept).listen(8080);
-    }
-
-    private static class DocumentCodec implements MessageCodec<Document, Document> {
-        private ObjectMapper objectMapper = new ObjectMapper();
-
-        @Override
-        public void encodeToWire(Buffer buffer, Document document) {
-            try {
-                buffer.appendBytes(objectMapper.writeValueAsBytes(document));
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public Document decodeFromWire(int pos, Buffer buffer) {
-            try {
-                return objectMapper.readValue(buffer.getString(0, buffer.length()), Document.class);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public Document transform(Document document) {
-            return document;
-        }
-
-        @Override
-        public String name() {
-            return "DocumentCodec";
-        }
-
-        @Override
-        public byte systemCodecID() {
-            return -1;
-        }
+        vertx.createHttpServer().requestHandler(router::accept).listen(port);
     }
 }

@@ -37,6 +37,14 @@ public class Document {
         return type;
     }
 
+    public boolean isStartDocument() {
+        return Type.START.equals(type);
+    }
+
+    public boolean isEndDocument() {
+        return Type.END.equals(type);
+    }
+
     public enum Type {
         START,
         END,
@@ -44,7 +52,7 @@ public class Document {
 
         @JsonValue
         public String toString() {
-            return this.toString().toLowerCase();
+            return this.name().toLowerCase();
         }
 
         @JsonCreator
