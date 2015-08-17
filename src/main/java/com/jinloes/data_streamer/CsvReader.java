@@ -6,12 +6,15 @@ import org.supercsv.prefs.CsvPreference;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Created by rr2re on 8/7/2015.
  */
 public class CsvReader extends ReaderStreamer {
+    private static final Logger LOGGER = Logger.getLogger(CsvReader.class.toString());
     private CsvMapReader csvMapReader;
     private String[] header;
     private Map<String, String> next;
@@ -33,6 +36,8 @@ public class CsvReader extends ReaderStreamer {
 
     @Override
     Document next() {
+        final String name = ManagementFactory.getRuntimeMXBean().getName();
+        LOGGER.info("Running on: " + name);
         Document document = Document.of(next);
         try {
             next = csvMapReader.read(header);

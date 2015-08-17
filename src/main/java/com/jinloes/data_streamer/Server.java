@@ -3,6 +3,7 @@ package com.jinloes.data_streamer;
 import com.jinloes.data_streamer.util.DocumentCodec;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.Router;
@@ -20,9 +21,12 @@ public class Server extends AbstractVerticle {
 
     public static void main(String[] args) {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
-        Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new Server(port));
-        vertx.eventBus().registerDefaultCodec(Document.class, new DocumentCodec());
+        Vertx.clusteredVertx(new VertxOptions().setHAEnabled(true), vertxAsyncResult -> {
+            Vertx vertx = vertxAsyncResult.result();
+            vertx.deployVerticle(new Server(port));
+            vertx.eventBus().registerDefaultCodec(Document.class, new DocumentCodec());
+        });
+
     }
 
     @Override
@@ -31,7 +35,7 @@ public class Server extends AbstractVerticle {
         Router router = Router.router(vertx);
 
         router.route().handler(BodyHandler.create());
-        router.post("/start").handler(routingContext -> {
+        router.post("/deploy").handler(routingContext -> {
             StreamerVerticle csv = new ReaderVerticle("CsvReader", new CsvReader(), "JsonReader");
             StreamerVerticle json = new WriterVerticle("JsonReader", new JsonWriter());
             final String[] deployId = {null, null};
@@ -41,10 +45,15 @@ public class Server extends AbstractVerticle {
             vertx.deployVerticle(json, event -> {
                 deployId[1] = event.result();
             });
-            eventBus.send("CsvReader", Document.of(null));
+            HttpServerResponse response = routingContext.response();
+            response.setStatusCode(201);
+            response.end();
+        });
+        router.post("/start").handler(routingContext -> {
+            eventBus.send("CsvReader", Document.startDocument());
             //vertx.undeploy(deployId[0]);
             //vertx.undeploy(deployId[1]);
-            System.out.println("Removed verticles");
+            //System.out.println("Removed verticles");
             HttpServerResponse response = routingContext.response();
             response.setStatusCode(200);
             response.end();

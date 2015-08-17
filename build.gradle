@@ -12,7 +12,7 @@ repositories {
 dependencies {
     compile 'io.vertx:vertx-core:3.0.0'
     compile 'io.vertx:vertx-web:3.0.0'
-    compile 'io.vertx:mod-work-queue:2.0.0-final'
+    compile 'io.vertx:vertx-hazelcast:3.0.0'
     compile 'net.sf.supercsv:super-csv:2.3.1'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.6.0'
     compile 'org.apache.commons:commons-lang3:3.4'
