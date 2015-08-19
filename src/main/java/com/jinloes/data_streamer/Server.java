@@ -1,17 +1,12 @@
 package com.jinloes.data_streamer;
 
 import com.jinloes.data_streamer.util.DocumentCodec;
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.IMongodConfig;
-import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
-import de.flapdoodle.embed.mongo.config.Net;
-import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.runtime.Network;
+import de.flapdoodle.embed.process.collections.Collections;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mongo.MongoClient;
 import io.vertx.ext.web.Router;
@@ -20,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Created by rr2re on 8/7/2015.
@@ -37,25 +32,12 @@ public class Server extends AbstractVerticle {
 
     public static void main(String[] args) throws IOException {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
-        int mongoPort = startMongo();
         Vertx.clusteredVertx(new VertxOptions().setHAEnabled(true), vertxAsyncResult -> {
             Vertx vertx = vertxAsyncResult.result();
-            MongoClient client = MongoClient.createShared(vertx, new JsonObject().put("port", mongoPort));
+            MongoClient client = MongoClient.createShared(vertx, new JsonObject());
             vertx.deployVerticle(new Server(port, client));
             vertx.eventBus().registerDefaultCodec(Document.class, new DocumentCodec());
         });
-    }
-
-    private static int startMongo() throws IOException {
-        int mongoPort = Network.getFreeServerPort();
-        MongodStarter starter = MongodStarter.getDefaultInstance();
-        IMongodConfig mongodConfig = new MongodConfigBuilder()
-                .version(Version.Main.PRODUCTION)
-                .net(new Net(mongoPort, Network.localhostIsIPv6()))
-                .build();
-        MongodExecutable mongodExecutable = starter.prepare(mongodConfig);
-        mongodExecutable.start();
-        return mongoPort;
     }
 
     @Override
@@ -69,8 +51,25 @@ public class Server extends AbstractVerticle {
 
     private void createRoutes(EventBus eventBus, Router router) {
         router.route().handler(BodyHandler.create());
+        router.post("/streams").handler(routingContext -> {
+            JsonObject stream = routingContext.getBodyAsJson();
+            String streamId = UUID.randomUUID().toString();
+            stream.put("stream_id", streamId);
+            eventBus.send("saveStream", stream, result -> {
+                HttpServerResponse response = routingContext.response();
+                if (result.succeeded()) {
+                    response.setStatusCode(201);
+                    response.end(new JsonObject().put("id", streamId).encodePrettily());
+                } else {
+                    response.setStatusCode(500);
+                    response.end(new JsonObject().put("message", result.cause().getMessage()).encodePrettily());
+                }
+
+            });
+        });
         router.post("/deploy").handler(routingContext -> {
-            StreamerVerticle csv = new ReaderVerticle("CsvReader", new CsvReader(), "JsonReader");
+            StreamerVerticle csv = new ReaderVerticle("CsvReader", new CsvReader(),
+                    Collections.newArrayList("JsonReader"));
             StreamerVerticle json = new WriterVerticle("JsonReader", new JsonWriter());
             final String[] deployId = {null, null};
             vertx.deployVerticle(csv, event -> {
@@ -83,16 +82,48 @@ public class Server extends AbstractVerticle {
             response.setStatusCode(201);
             response.end();
         });
-        router.post("/start").handler(routingContext -> {
-            UUID streamId = UUID.randomUUID();
-            LOGGER.info("Stream id: " + streamId);
-            eventBus.send("saveStream", new JsonObject().put("stream_id", streamId.toString()));
-            eventBus.send("CsvReader", Document.startDocument());
-            //vertx.undeploy(deployId[0]);
-            //vertx.undeploy(deployId[1]);
-            //System.out.println("Removed verticles");
+        router.post("/start/:streamId").handler(routingContext -> {
+            String streamId = routingContext.request().getParam("streamId");
+            eventBus.<JsonObject>send("getStream", streamId, result -> {
+                JsonObject stream = result.result().body();
+                JsonArray streamers = stream.getJsonArray("streamers");
+                List<String> readers = new ArrayList<>();
+                Map<String, String> streamerToInstanceMap = new HashMap<>();
+                for (int i = 0; i < streamers.size(); i++) {
+                    JsonObject streamer = streamers.getJsonObject(i);
+                    String type = streamer.getString("type");
+                    String id = streamer.getString("id");
+                    if (!streamerToInstanceMap.containsKey(id)) {
+                        streamerToInstanceMap.put(id, UUID.randomUUID().toString());
+                    }
+                    switch (type) {
+                        case "reader":
+                            readers.add(id);
+                            JsonArray outputs = streamer.getJsonArray("outputs");
+                            List<String> outputAddresses = new ArrayList<>();
+                            for (int j = 0; j < outputs.size(); j++) {
+                                String outputId = outputs.getString(j);
+                                if (!streamerToInstanceMap.containsKey(outputId)) {
+                                    streamerToInstanceMap.put(outputId, UUID.randomUUID().toString());
+                                }
+                                outputAddresses.add(streamerToInstanceMap.get(outputId));
+                            }
+                            StreamerVerticle csv = new ReaderVerticle(streamerToInstanceMap.get(id),
+                                    new CsvReader(), outputAddresses);
+                            vertx.deployVerticle(csv);
+                            break;
+                        case "writer":
+                            StreamerVerticle json = new WriterVerticle(streamerToInstanceMap.get(id), new JsonWriter());
+                            vertx.deployVerticle(json);
+                            break;
+                    }
+                }
+                for (String reader : readers) {
+                    eventBus.send(streamerToInstanceMap.get(reader), Document.startDocument());
+                }
+            });
             HttpServerResponse response = routingContext.response();
-            response.setStatusCode(200);
+            response.setStatusCode(201);
             response.end();
         });
         router.get("/streamruns/:streamId").handler(routingContext ->

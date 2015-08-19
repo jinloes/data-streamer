@@ -2,25 +2,33 @@ package com.jinloes.data_streamer;
 
 import io.vertx.core.eventbus.Message;
 
+import java.util.List;
+
 /**
  * Created by rr2re on 8/7/2015.
  */
 public class ReaderVerticle extends StreamerVerticle {
     private final ReaderStreamer streamer;
-    private final String next;
+    private final List<String> outputAddresses;
 
-    public ReaderVerticle(String name, ReaderStreamer streamer, String next) {
+    public ReaderVerticle(String name, ReaderStreamer streamer, List<String> outputAddresses) {
         super(name, streamer);
         this.streamer = streamer;
-        this.next = next;
+        this.outputAddresses = outputAddresses;
     }
 
     @Override
     public void handleMessage(Message<Document> message) {
-        vertx.eventBus().send(next, Document.startDocument());
-        while (streamer.hasNext()) {
-            vertx.eventBus().send(next, streamer.next());
+        for (String address : outputAddresses) {
+            vertx.eventBus().send(address, Document.startDocument());
         }
-        vertx.eventBus().send(next, Document.endDocument());
+        while (streamer.hasNext()) {
+            for (String address : outputAddresses) {
+                vertx.eventBus().send(address, streamer.next());
+            }
+        }
+        for (String address : outputAddresses) {
+            vertx.eventBus().send(address, Document.endDocument());
+        }
     }
 }
