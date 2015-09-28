@@ -19,5 +19,7 @@ dependencies {
     compile 'org.apache.commons:commons-lang3:3.4'
     compile 'de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.48.2'
     compile 'org.slf4j:slf4j-log4j12:1.7.12'
+    compile 'com.box:box-java-sdk:1.1.0'
+    compile 'org.mongodb:mongo-java-driver:3.0.4'
     testCompile 'junit:junit:4.11'
 }

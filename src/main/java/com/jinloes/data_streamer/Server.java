@@ -46,6 +46,7 @@ public class Server extends AbstractVerticle {
         Router router = Router.router(vertx);
         createRoutes(eventBus, router);
         vertx.deployVerticle(new StreamService(mongoClient));
+        vertx.deployVerticle(new BoxFileReader(mongoClient, new OAuthMongoDao()), new DeploymentOptions().setWorker(true));
         vertx.createHttpServer().requestHandler(router::accept).listen(port);
     }
 
@@ -135,5 +136,13 @@ public class Server extends AbstractVerticle {
                                 response.end(result.result().body().encode());
                             }
                         }));
+        router.get("/readbox").handler(routingContext -> {
+            eventBus.send("readBox", new JsonObject(), callback -> {
+
+            });
+            HttpServerResponse response = routingContext.response();
+            response.setStatusCode(200);
+            response.end();
+        });
     }
 }
