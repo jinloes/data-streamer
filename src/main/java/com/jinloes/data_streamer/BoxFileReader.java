@@ -56,6 +56,7 @@ public class BoxFileReader extends AbstractVerticle {
     @Override
     public void start() {
         vertx.eventBus().consumer("readBox", this::readBox);
+        vertx.sharedData();
         org.bson.Document oauth = oAuthMongoDao.getOAuthInfo();
         accessToken = oauth.getString("access_token");
         refreshToken = oauth.getString("refresh_token");
